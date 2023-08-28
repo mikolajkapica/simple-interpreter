@@ -1,36 +1,39 @@
+import scala.annotation.tailrec
+
 class Lexer(input: String, position: Int, line: Int, column: Int) {
 
-  def this(input: String) = this(input, 0, 0, 0)
+  def this(input: String) = this(input, 1, 1, 1)
 
-  def hasNext: Boolean = {
+  private def hasNext: Boolean = {
     this.input.length - 1 >= this.position
   }
 
-  def prettyPrintPosition(): Unit = {
+  private def getRest: String = {
+    input.substring(position)
+  }
+
+  private def prettyPrintPosition(): Unit = {
     println(Console.BLUE +
       "position: " + this.position +
       " line: " + this.line +
       " column: " + this.column + Console.RESET)
   }
 
-  def advance(posBy: Int): Option[Lexer] = {
+  private def advance(posBy: Int): Option[Lexer] = {
     def canAdvance: Boolean = this.input.length - 1 >= this.position + posBy - 1
     def lineBy: Int = this.input.substring(position, position + posBy).count(_ == '\n')
-    //TODO: calculate newColumn
-    def newColumn: Int = 0
+    def newColumn: Int = {
+      val lastNewline = this.input.substring(0, position + posBy).lastIndexOf('\n')
+      if (lastNewline == -1) this.column + posBy
+      else this.position + posBy - lastNewline
+    }
     if (canAdvance) Some(Lexer(input, position + posBy, line + lineBy, newColumn))
     else None
   }
 
-  def getRest: String = {
-    input.substring(position)
-  }
-
-  // can i return a tuple? A: yes Q: how do i do that?
-  // A: return a tuple
-  def getNextToken: (Lexer, Token) = {
+  private def getNextToken: (Lexer, Token) = {
     if (this.hasNext) {
-      input.substring(position) match {
+      this.getRest match {
         case str if str.startsWith("niech") => (this.advance("niech".length).get, Token(TokenType.Let, "niech"))
 
         // comparison
@@ -44,18 +47,17 @@ class Lexer(input: String, position: Int, line: Int, column: Int) {
         case str if str.startsWith("=") => (this.advance("=".length).get, Token(TokenType.Assign, "="))
 
         // logic
-        case str if str.startsWith("prawda ") => (this.advance("prawda".length).get, Token(TokenType.True, "prawda"))
-        case str if str.startsWith("falsz ") => (this.advance("falsz".length).get, Token(TokenType.False, "falsz"))
-        case str if str.startsWith("fałsz ") => (this.advance("fałsz".length).get, Token(TokenType.False, "fałsz"))
+        case str if str.startsWith("prawda") => (this.advance("prawda".length).get, Token(TokenType.True, "prawda"))
+        case str if str.startsWith("falsz") => (this.advance("falsz".length).get, Token(TokenType.False, "falsz"))
+        case str if str.startsWith("fałsz") => (this.advance("fałsz".length).get, Token(TokenType.False, "fałsz"))
         case str if str.startsWith("i ") => (this.advance("i".length).get, Token(TokenType.And, "i"))
         case str if str.startsWith("lub ") => (this.advance("lub".length).get, Token(TokenType.Or, "lub"))
         case str if str.startsWith("!") => (this.advance("!".length).get, Token(TokenType.Not, "!"))
 
-        // helpers
-        case str if str.startsWith("\n") => (this.advance("\n".length).get, Token(TokenType.Newline, "\\n"))
-        case str if str.startsWith(" ") =>
-          val spaces = this.getRest.takeWhile(_ == ' ')
+        case str if str.charAt(0).isWhitespace =>
+          val spaces = this.getRest.takeWhile(_.isWhitespace)
           (this.advance(spaces.length).get, Token(TokenType.Whitespace, spaces))
+
         case str if str.startsWith(",") => (this.advance(",".length).get, Token(TokenType.Comma, ","))
         case str if str.startsWith(";") => (this.advance(";".length).get, Token(TokenType.Semicolon, ";"))
 
@@ -89,15 +91,38 @@ class Lexer(input: String, position: Int, line: Int, column: Int) {
           val int = this.getRest.takeWhile(_.isDigit)
           (this.advance(int.length).get, Token(TokenType.Int, int))
         case _ =>
+          val badline =
+            this.input.substring(
+              math.max(this.input.lastIndexOf('\n', this.position - 1) + 1, 0),
+              this.input.indexOf('\n', this.position - 1)
+            )
           val message =
-          "Unexpected character: " + this.input.charAt(position) +
-          " in line: " + this.line +
-          " at column: " + this.column
+            badline + "\n" +
+            String.format("%" + this.column + "s", "^") +
+            " Unexpected character: " + this.input.charAt(position) +
+            " (line: " + this.line +
+            " column: " + this.column + ")"
           (this.advance(1).get, Token(TokenType.Error, message))
       }
     }
     else (this, Token(TokenType.EOF, ""))
   }
+
+  def getTokens(l: Lexer): List[Token] =
+    @tailrec
+    def aux(l: Lexer, acc: List[Token]): List[Token] =
+//      l.prettyPrintPosition()
+      l.getNextToken match
+        case (_, Token(TokenType.EOF, _)) => Token(TokenType.EOF, "") :: acc
+        case (l, Token(TokenType.Error, msg)) =>
+//          println(Console.RED + msg + Console.RESET)
+          aux(l, acc)
+//        case (l, Token(TokenType.Whitespace, _)) => aux(l, acc)
+//        case (l, Token(TokenType.Newline, _)) => aux(l, acc)
+        case (l, t) =>
+//          println(Console.GREEN + t + Console.RESET)
+          aux(l, t :: acc)
+    aux(l, Nil).reverse
 }
 
 
