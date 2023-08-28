@@ -1,0 +1,11 @@
+niech a = 2;
+niech b = 2;
+niech c = a + b;
+
+
+jezeli (2 == 2) {
+zwroc prawda;
+} inaczej {
+    zwroc falsz;
+z ?? z
+}
