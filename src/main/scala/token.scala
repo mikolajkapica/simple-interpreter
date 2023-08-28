@@ -46,6 +46,7 @@ enum TokenType:
   case While
   case Return
   case Function
+  case Print
 
   // literals
   case Ident
