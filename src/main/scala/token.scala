@@ -1,8 +1,8 @@
 enum TokenType:
   case Let
 
-  // errors
   case Error
+  case Comment
 
   // comparison
   case Equal
@@ -33,6 +33,7 @@ enum TokenType:
   case Minus
   case Star
   case Slash
+  case Caret
 
   // parentheses
   case LParen

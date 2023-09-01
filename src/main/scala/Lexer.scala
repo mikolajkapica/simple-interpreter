@@ -5,11 +5,11 @@ class Lexer(input: String, position: Int, line: Int, column: Int) {
   def this(input: String) = this(input, 1, 1, 1)
 
   private def hasNext: Boolean = {
-    this.input.length - 1 >= this.position
+    this.input.length >= this.position
   }
 
   private def getRest: String = {
-    input.substring(position)
+    input.substring(position-1)
   }
 
   private def prettyPrintPosition(): Unit = {
@@ -20,10 +20,10 @@ class Lexer(input: String, position: Int, line: Int, column: Int) {
   }
 
   private def advance(posBy: Int): Option[Lexer] = {
-    def canAdvance: Boolean = this.input.length - 1 >= this.position + posBy - 1
-    def lineBy: Int = this.input.substring(position, position + posBy).count(_ == '\n')
+    def canAdvance: Boolean = this.input.length >= this.position + posBy - 1
+    def lineBy: Int = this.input.substring(position, position + posBy-1).count(_ == '\n')
     def newColumn: Int = {
-      val lastNewline = this.input.substring(0, position + posBy).lastIndexOf('\n')
+      val lastNewline = this.input.substring(0, position + posBy-1).lastIndexOf('\n')
       if (lastNewline == -1) this.column + posBy
       else this.position + posBy - lastNewline
     }
@@ -35,7 +35,9 @@ class Lexer(input: String, position: Int, line: Int, column: Int) {
     if (this.hasNext) {
       this.getRest match {
         case str if str.startsWith("niech") => (this.advance("niech".length).get, Token(TokenType.Let, "niech"))
-
+        case str if str.startsWith("#") =>
+          val comment = this.getRest.takeWhile(_ != '\n')
+          (this.advance(comment.length).get, Token(TokenType.Comment, comment))
         // comparison
         case str if str.startsWith("==") => (this.advance("==".length).get, Token(TokenType.Equal, "=="))
         case str if str.startsWith("!=") => (this.advance("!=".length).get, Token(TokenType.NotEqual, "!="))
@@ -66,6 +68,7 @@ class Lexer(input: String, position: Int, line: Int, column: Int) {
         case str if str.startsWith("-") => (this.advance("-".length).get, Token(TokenType.Minus, "-"))
         case str if str.startsWith("*") => (this.advance("*".length).get, Token(TokenType.Star, "*"))
         case str if str.startsWith("/") => (this.advance("/".length).get, Token(TokenType.Slash, "/"))
+        case str if str.startsWith("^") => (this.advance("/".length).get, Token(TokenType.Caret, "/"))
 
         // parentheses
         case str if str.startsWith("(") => (this.advance("(".length).get, Token(TokenType.LParen, "("))
@@ -87,7 +90,7 @@ class Lexer(input: String, position: Int, line: Int, column: Int) {
         case str if str.charAt(0).isLetter =>
           val ident = this.getRest.takeWhile(_.isLetterOrDigit)
           (this.advance(ident.length).get, Token(TokenType.Ident, ident))
-        case str if str.charAt(0).isDigit =>
+        case str if str.charAt(0).isDigit => 
           val int = this.getRest.takeWhile(_.isDigit)
           (this.advance(int.length).get, Token(TokenType.Int, int))
         case _ =>
@@ -108,21 +111,18 @@ class Lexer(input: String, position: Int, line: Int, column: Int) {
     else (this, Token(TokenType.EOF, ""))
   }
 
-  def getTokens(l: Lexer): List[Token] =
+  def getTokens(): List[Token] =
     @tailrec
     def aux(l: Lexer, acc: List[Token]): List[Token] =
-//      l.prettyPrintPosition()
-      l.getNextToken match
+      val nextToken = l.getNextToken
+      nextToken match
         case (_, Token(TokenType.EOF, _)) => Token(TokenType.EOF, "") :: acc
-        case (l, Token(TokenType.Error, msg)) =>
-//          println(Console.RED + msg + Console.RESET)
-          aux(l, acc)
-//        case (l, Token(TokenType.Whitespace, _)) => aux(l, acc)
-//        case (l, Token(TokenType.Newline, _)) => aux(l, acc)
-        case (l, t) =>
-//          println(Console.GREEN + t + Console.RESET)
-          aux(l, t :: acc)
-    aux(l, Nil).reverse
+        case (l, Token(TokenType.Error, msg)) => aux(l, acc)
+        case (l, Token(TokenType.Whitespace, _)) => aux(l, acc)
+        case (l, Token(TokenType.Newline, _)) => aux(l, acc)
+        case (l, Token(TokenType.Comment, _)) => aux(l, acc)
+        case (l, t) => aux(l, t :: acc)
+    aux(this, Nil).reverse
 }
 
 
