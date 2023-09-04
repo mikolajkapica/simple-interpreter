@@ -1,11 +1,14 @@
-niech a = 2;
-niech b = 2;
-niech c = a + b;
+3 + 4 * 5 + -(5 * 4)
+
+3
+
+4 * 5
+
+5 * 4
+
+-(5*4)
 
 
-jezeli (2 == 2) {
-zwroc prawda;
-} inaczej {
-    zwroc falsz;
-z ?? z
-}
+
+100000 * 40050
+
